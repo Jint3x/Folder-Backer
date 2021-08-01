@@ -1,5 +1,8 @@
-use env_plus;
+use std::path::PathBuf;
 
+use env_plus;
+mod helpers;
+use helpers::{fetch_files, filter_files};
 
 fn main() {
     env_plus::EnvLoader::new()
@@ -19,4 +22,17 @@ fn main() {
     .split(",")
     .map(|str| str.trim())
     .collect::<Vec<&str>>();
+
+    create_backup(mfolder, bfolder, to_filter)
+}
+
+/// The main function that creates a backup of the files in each folder.
+///
+fn create_backup(mfolder: String, bfolder: String, to_filter: Vec<&str>) {
+    let mut mfiles = fetch_files(mfolder);
+    let mut bfiles = fetch_files(bfolder);
+    filter_files(&mut mfiles.dirs, &mut bfiles.dirs, to_filter);
+
+
+    dbg!("{}, {}", mfiles, bfiles);
 }
