@@ -7,7 +7,7 @@ pub struct DirItems {
 }
 
 /// Extract all dirs/files from a given dir path. 
-pub fn fetch_files(dir: String) -> DirItems {
+pub fn fetch_files(dir: &String) -> DirItems {
     let dir_items = std::fs::read_dir(dir).expect("Couldn't read a path passed to this function");
     let mut dir_files = DirItems {
         files: Vec::new(),
@@ -35,8 +35,7 @@ pub fn fetch_files(dir: String) -> DirItems {
 
 // Given a list of the directories in the main and backup folder, filter them so the ones in the main_files will be ignored 
 // and the ones in the backup folder will be completely removed if found. 
-pub fn filter_files(main_dirs: &mut Vec<PathBuf>, backup_dirs: &mut Vec<PathBuf>, to_filter: Vec<&str>) {
-    
+pub fn filter_files(main_dirs: &mut Vec<PathBuf>, backup_dirs: &mut Vec<PathBuf>, to_filter: &Vec<&str>) {
     // Remove all filtered items from the vec.
     *main_dirs = main_dirs
     .iter()

@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use env_plus;
 mod helpers;
-use helpers::{DirItems, fetch_files, filter_files};
+use helpers::{fetch_files, filter_files};
 
 fn main() {
     env_plus::EnvLoader::new()
@@ -23,24 +23,24 @@ fn main() {
     .map(|str| str.trim())
     .collect::<Vec<&str>>();
 
-    create_backup(mfolder, bfolder, to_filter)
+    create_backup(mfolder, bfolder, &to_filter)
 }
 
 
 /// The main function that creates a backup of the files in each folder.
 ///
-fn create_backup(mfolder: String, bfolder: String, to_filter: Vec<&str>) {
-    let mut mfiles = fetch_files(mfolder.clone());
-    let mut bfiles = fetch_files(bfolder.clone());
-    filter_files(&mut mfiles.dirs, &mut bfiles.dirs, to_filter.clone());
+fn create_backup(mfolder: String, bfolder: String, to_filter: &Vec<&str>) {
+    let mut mfiles = fetch_files(&mfolder);
+    let mut bfiles = fetch_files(&bfolder);
+    filter_files(&mut mfiles.dirs, &mut bfiles.dirs, to_filter);
 
     // Go to the folder and clear all differences between the backup and the main dir.
     // Then, a list of sub dirs will be given and the same function will be called on all of them.
-    clear_inconsistencies_files(mfiles.files, bfiles.files, mfolder.clone(), bfolder.clone());
+    clear_inconsistencies_files(mfiles.files, bfiles.files, &bfolder);
     let remaining_dirs = clear_inconsistencies_dirs(mfiles.dirs, bfiles.dirs, &bfolder);
 
     for (main_dir, backup_dir) in remaining_dirs {
-        create_backup(main_dir, backup_dir, to_filter.clone());
+        create_backup(main_dir, backup_dir, to_filter);
     }
 }
 
@@ -50,7 +50,7 @@ fn create_backup(mfolder: String, bfolder: String, to_filter: Vec<&str>) {
 /// 1. If file exists in B, but doesn't exist in M, remove it.
 /// 2. If a file exists in M, but doesn't exist in B, copy it.
 /// 3. If file exists in both M and B, check it's metadata and copy it to B if there's a difference.
-fn clear_inconsistencies_files(mfiles: Vec<PathBuf>, bfiles: Vec<PathBuf>, mpath: String, bpath: String) {
+fn clear_inconsistencies_files(mfiles: Vec<PathBuf>, bfiles: Vec<PathBuf>, bpath: &String) {
     let exists_in_m_only = mfiles.iter().filter(|mfile| {
         bfiles.iter().all(|bfile| {
             bfile.file_name().unwrap() != mfile.file_name().unwrap()
@@ -81,10 +81,9 @@ fn clear_inconsistencies_files(mfiles: Vec<PathBuf>, bfiles: Vec<PathBuf>, mpath
 
     // Run step 2
     exists_in_m_only.for_each(|file| {
-        let bpathbuf = PathBuf::from(bpath.clone());
+        let bpathbuf = PathBuf::from(&bpath);
         let bpathbuf = bpathbuf.join(file.file_name().unwrap());
 
-        dbg!(file, &bpathbuf);
         std::fs::copy(file, bpathbuf).unwrap(); 
     });
 
