@@ -37,10 +37,10 @@ fn create_backup(mfolder: String, bfolder: String, to_filter: Vec<&str>) {
     // Go to the folder and clear all differences between the backup and the main dir.
     // Then, a list of sub dirs will be given and the same function will be called on all of them.
     clear_inconsistencies_files(mfiles.files, bfiles.files, mfolder.clone(), bfolder.clone());
-    let remaining_dirs = clear_inconsistencies_dirs(mfiles.dirs, bfiles.dirs);
+    let remaining_dirs = clear_inconsistencies_dirs(mfiles.dirs, bfiles.dirs, &bfolder);
 
     for (main_dir, backup_dir) in remaining_dirs {
-        // create_backup(main_dir, backup_dir, to_filter.clone());
+        create_backup(main_dir, backup_dir, to_filter.clone());
     }
 }
 
@@ -84,6 +84,7 @@ fn clear_inconsistencies_files(mfiles: Vec<PathBuf>, bfiles: Vec<PathBuf>, mpath
         let bpathbuf = PathBuf::from(bpath.clone());
         let bpathbuf = bpathbuf.join(file.file_name().unwrap());
 
+        dbg!(file, &bpathbuf);
         std::fs::copy(file, bpathbuf).unwrap(); 
     });
 
@@ -105,7 +106,63 @@ fn clear_inconsistencies_files(mfiles: Vec<PathBuf>, bfiles: Vec<PathBuf>, mpath
 /// 
 /// 1. If dir exists in M, but doesn't exist in B, create it.
 /// 2. If dir exists in B, but doesn't exist in M, remove all of its contents and remove it.
-/// 3. If dir exists in both M and B, do nothing.  
-fn clear_inconsistencies_dirs(mdirs: Vec<PathBuf>, bdirs: Vec<PathBuf>) -> Vec<(String, String)> {
-    vec!(("".into(), "".into()))
+/// 3. If dir exists in both M and B, check if the main folder's modified date is different than the backup one. If so, copy the file.
+fn clear_inconsistencies_dirs(mdirs: Vec<PathBuf>, bdirs: Vec<PathBuf>, bpath: &String) -> Vec<(String, String)> {
+    let mut to_explore = vec!();
+
+    let exists_in_m_only = mdirs.iter().filter(|mdir| {
+        bdirs.iter().all(|bdir| {
+            bdir.file_name().unwrap() != mdir.file_name().unwrap()
+        })
+    });
+
+    let exists_in_b_only = bdirs.iter().filter(|bdir| {
+        mdirs.iter().all(|mdir| {
+            mdir.file_name().unwrap() != bdir.file_name().unwrap()
+        })
+    });
+
+
+    let exists_in_m_and_b = bdirs.iter().filter_map(|bdir| {
+        for mdir in mdirs.iter() {
+            if mdir.file_name().unwrap() == bdir.file_name().unwrap() {
+                return Some((mdir, bdir))
+            }
+        }
+
+        None
+    });
+
+
+    // Step 1
+    exists_in_m_only.for_each(|dir| {
+        let new_path = PathBuf::from(bpath).join(dir.file_name().unwrap());
+        std::fs::create_dir(&new_path).unwrap();
+
+        to_explore.push((
+            dir.to_str().unwrap().to_string(),
+            new_path.to_str().unwrap().to_string()
+        ));
+    });
+
+    // Step 2
+    exists_in_b_only.for_each(|dir| {
+        std::fs::remove_dir_all(dir).unwrap();
+    });
+
+    // Step 3
+    exists_in_m_and_b.for_each(|(mdir, bdir)| {
+        let data_main = mdir.metadata().unwrap().modified().unwrap();
+        let data_backup = bdir.metadata().unwrap().modified().unwrap();
+
+        if data_main != data_backup {
+            to_explore.push((
+                mdir.to_str().unwrap().to_string(),
+                bdir.to_str().unwrap().to_string()
+            ));
+        }
+    });
+
+
+    to_explore
 }
