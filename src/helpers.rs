@@ -59,3 +59,61 @@ pub fn filter_files(main_dirs: &mut Vec<PathBuf>, backup_dirs: &mut Vec<PathBuf>
     .map(|path| path.clone())
     .collect::<Vec<PathBuf>>();
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+
+    #[test]
+    fn fetch_files_get_files() {
+        let path = "./test-folder/fetch-files";
+
+        let folder_test3 = format!("{}{}", path, "/test3/");
+        let file_test = format!("{}{}", path, "/test.txt");
+        let file_test2 = format!("{}{}", path, "/test2.txt");
+
+        fs::create_dir(path).unwrap();
+
+        fs::create_dir(folder_test3).unwrap();
+        fs::File::create(file_test).unwrap();
+        fs::File::create(file_test2).unwrap();
+
+        let items = fetch_files(&path.to_string());
+        
+        assert_eq!(items.files.len(), 2);
+        assert_eq!(items.dirs.len(), 1);
+
+        fs::remove_dir_all(path).unwrap();
+    }
+
+
+    #[test]
+    fn filter_files_filter() {
+        let path = "./test-folder/filter-files";
+        let folder_test3 = format!("{}{}", path, "/test3/");
+        let file_test = format!("{}{}", path, "/test.txt");
+        let file_test2 = format!("{}{}", path, "/test2.txt");
+
+        fs::create_dir(path).unwrap();
+        fs::create_dir(folder_test3).unwrap();
+        fs::File::create(file_test).unwrap();
+        fs::File::create(file_test2).unwrap();
+
+        let items = fetch_files(&path.to_string());
+
+        let mut bdirs = items.dirs;
+        let mut mdirs = vec!(
+            PathBuf::from("C:/special-folder/special/test5/"),
+            PathBuf::from("C:/special-folder/special/test6/"),
+        );
+
+        filter_files(&mut mdirs, &mut bdirs, &vec!("test5", "test3"));
+
+        assert_eq!(mdirs.len(), 1);
+        assert_eq!(bdirs.len(), 0);
+
+        fs::remove_dir_all(path).unwrap();
+    }
+}
