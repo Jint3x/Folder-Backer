@@ -5,15 +5,19 @@ mod helpers;
 use helpers::{fetch_files, filter_files};
 
 fn main() {
+    load_passed_args();
+
     env_plus::EnvLoader::new()
     .change_file("./saver.conf".into())
     .change_delimiter("=".into())
     .change_comment("#".into())
     .activate();
 
+
     // m = main, b = backup
     let mfolder = std::env::var("main_folder").expect("Didn't find a main_folder entry in the config");
     let bfolder = std::env::var("backup_folder").expect("Didn't find a backup_folder entry in the config");
+
 
     // Collect all dirs that need to be filtered (removed) when copying. This is usually folders that you don't care about or are too big
     // to copy. 
@@ -27,8 +31,26 @@ fn main() {
 }
 
 
+/// Fetch the list of provided arguments when the program was started and load them.
+/// 
+/// There're 3 arguments that are accepted. If a different argument is passed, an error 
+/// will occur. These args will be set program-wise.
+fn load_passed_args() {
+    let args = std::env::args().skip(1);
+
+    args.for_each(|arg| {
+        let (name, value) = arg.split_once("=").expect("An error occured while parsing your passed argument");
+    
+        if !["backup_folder", "main_folder", "filter_dirs"].contains(&name) {
+            panic!("One or more of the passed argument does not appear to be a valid one.")
+        }
+
+        std::env::set_var(name, value);
+    })
+}
+
+
 /// The main function that creates a backup of the files in each folder.
-///
 fn create_backup(mfolder: String, bfolder: String, to_filter: &Vec<&str>) {
     let mut mfiles = fetch_files(&mfolder);
     let mut bfiles = fetch_files(&bfolder);
